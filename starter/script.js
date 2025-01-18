@@ -63,10 +63,11 @@ const inputClosePin = document.querySelector('.form__input--pin');
 
 
 
-const displayMovements=function(movements)
+const displayMovements=function(movements,sort=false)
 {
   containerMovements.innerHTML='';
-  movements.forEach(function(mov,i)
+  const movs=sort?movements.slice().sort((a,b)=>a-b):movements;
+  movs.forEach(function(mov,i)
   {
     const type=mov>0?'deposit':'withdrawal';
 
@@ -79,9 +80,10 @@ const displayMovements=function(movements)
 }
 
 
-const calcDisplayBalance=function(movements)
+const calcDisplayBalance=function(acc)
 {
-  const balance=movements.reduce((acc,mov)=>acc+mov,0);
+  const balance=acc.movements.reduce((acc,mov)=>acc+mov,0);
+  acc.balance=balance;
   labelBalance.textContent=`${balance}€`;
 }
 
@@ -108,28 +110,79 @@ const createUsernames=function(accs)
 }
 createUsernames(accounts);
 
-let createAccount; 
+const updateUI=function(acc)
+{
+  displayMovements(acc.movements);
+
+  calcDisplayBalance(acc);
+
+  calcDisplaySummary(acc);
+}
+
+let currentAccount; 
 btnLogin.addEventListener('click',function(event)
 {
   event.preventDefault();
-  createAccount=accounts.find(acc=>acc.username===inputLoginUsername.value);
-  if(createAccount?.pin===Number(inputLoginPin.value))
+  currentAccount=accounts.find(acc=>acc.username===inputLoginUsername.value);
+  if(currentAccount?.pin===Number(inputLoginPin.value))
   {
-    labelWelcome.textContent=`Welcome back, ${createAccount.owner.split(' ')[0]}`;
+    labelWelcome.textContent=`Welcome back, ${currentAccount.owner.split(' ')[0]}`;
     containerApp.style.opacity=100;
 
     inputLoginUsername.value=inputLoginPin.value='';
     inputLoginPin.blur();
 
-    displayMovements(createAccount.movements);
-
-    calcDisplayBalance(createAccount.movements);
-
-    calcDisplaySummary(createAccount);
-
-
+    updateUI(currentAccount);
   }
 });
+
+btnTransfer.addEventListener('click',function(event)
+{
+  event.preventDefault();
+  const amount=Number(inputTransferAmount.value);
+  const receiverAcc=accounts.find(acc=>acc.username===inputTransferTo.value);
+  inputTransferAmount.value=inputTransferTo.value='';
+  // console.log(amount,receiverAcc,currentAccount);
+  if(amount>0 && receiverAcc && currentAccount.balance>=amount &&  receiverAcc?.username!==currentAccount.username)
+  {
+    currentAccount.movements.push(-amount);
+    receiverAcc.movements.push(amount);
+    updateUI(currentAccount);
+  }
+});
+
+
+btnClose.addEventListener('click',function(event)
+{
+  event.preventDefault();
+  if(inputCloseUsername.value===currentAccount.username && Number(inputClosePin.value)===currentAccount.pin)
+  {
+    // console.log('correct');
+    const index=accounts.findIndex(acc=>acc.username===currentAccount.username);
+    accounts.splice(index,1);
+    containerApp.style.opacity=0;
+  }
+  inputCloseUsername.value=inputClosePin.value='';
+});
+btnLoan.addEventListener('click',function(event)
+{
+  event.preventDefault();
+  const amount=Number(inputLoanAmount.value);
+  if(amount>0 && currentAccount.movements.some(mov=>mov>=amount*0.1))
+  {
+    currentAccount.movements.push(amount);
+    updateUI(currentAccount);
+  }
+  inputLoanAmount.value='';
+});
+let sorted=false;
+btnSort.addEventListener('click',function(event)
+{
+  event.preventDefault();
+  displayMovements(currentAccount.movements,!sorted);
+  sorted=!sorted;
+});
+
 /////////////////////////////////////////////////
 /////////////////////////////////////////////////
 // LECTURES
